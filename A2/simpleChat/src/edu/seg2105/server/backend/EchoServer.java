@@ -1,0 +1,156 @@
+package edu.seg2105.server.backend;
+// This file contains material supporting section 3.7 of the textbook:
+// "Object Oriented Software Engineering" and is issued under the open-source
+// license found at www.lloseng.com 
+
+
+import ocsf.server.*;
+
+import java.io.IOException;
+
+import edu.seg2105.client.common.ChatIF;
+
+/**
+ * This class overrides some of the methods in the abstract 
+ * superclass in order to give more functionality to the server.
+ *
+ * @author Dr Timothy C. Lethbridge
+ * @author Dr Robert Lagani&egrave;re
+ * @author Fran&ccedil;ois B&eacute;langer
+ * @author Paul Holden
+ */
+public class EchoServer extends AbstractServer 
+{
+  //Class variables *************************************************
+	ChatIF console;
+	final String loginID = "loginID";
+  
+  //Constructors ****************************************************
+  
+  /**
+   * Constructs an instance of the echo server.
+   *
+   * @param port The port number to connect on.
+   */
+  public EchoServer(int port, ChatIF console) 
+  {
+    super(port);
+    this.console = console;
+    try 
+    {
+      this.listen(); //Start listening for connections
+    } 
+    catch (Exception ex) 
+    {
+    	console.display("ERROR - Could not listen for clients!");
+    }
+  }
+
+  
+  //Instance methods ************************************************
+  
+  /**
+   * This method handles any messages received from the client.
+   *
+   * @param msg The message received from the client.
+   * @param client The connection from which the message originated.
+   */
+  public void handleMessageFromClient
+    (Object msg, ConnectionToClient client)
+  {
+	String message = msg.toString().trim();
+	if (message.charAt(0) == '#') {
+		String[] commandArgs = message.split(" ");
+		if (commandArgs[0].equals("#login")) {
+			client.setInfo(loginID, commandArgs[1]);
+			console.display("A new client has connected to the server.");
+			console.display("Message received: #login " + commandArgs[1] + " from null.");
+			console.display(commandArgs[1] + " has logged on.");
+			sendToAllClients(commandArgs[1] + " has logged on.");
+		}
+	} else {
+		console.display("Message received: " + msg + " from " + client.getInfo(loginID));
+	    this.sendToAllClients(client.getInfo(loginID) + "> " + msg);
+	}
+  }
+    
+  /**
+   * This method overrides the one in the superclass.  Called
+   * when the server starts listening for connections.
+   */
+  protected void serverStarted()
+  {
+	  console.display
+      ("Server listening for clients on port " + getPort());
+  }
+  
+  /**
+   * This method overrides the one in the superclass.  Called
+   * when the server stops listening for connections.
+   */
+  protected void serverStopped()
+  {
+	  console.display
+      ("Server has stopped listening for connections.");
+  }
+  
+  public void handleMessageFromConsole(Object msg){
+		String message = msg.toString().trim();
+		if (message.charAt(0) == ('#')) {
+			String[] commandArgs = message.split(" ");
+			if (commandArgs[0].equals("#quit")) {
+				try {
+					close();
+					System.exit(0);
+				} catch(IOException e) {
+					console.display("Failed to quit server due to: " + e.toString());
+				}
+			} else if (commandArgs[0].equals("#stop")) {
+				stopListening();
+			} else if (commandArgs[0].equals("#close")) {
+				try {
+					close();
+				} catch(IOException e) {
+					console.display("Failed to close server due to: " + e.toString());
+				}
+			} else if (commandArgs[0].equals("#setport")) {
+				if (!isListening()) {
+					try {
+						setPort(Integer.parseInt(commandArgs[1]));
+					} catch (ArrayIndexOutOfBoundsException e){
+						console.display("Please enter an argument after this command.");
+					} catch (NumberFormatException e){
+						console.display("Please enter a numerical argument after this command.");
+					}
+				} else {
+					console.display("Cannot change port while server is running.");
+				}
+			} else if (commandArgs[0].equals("#start")) {
+				try {
+					listen();
+				} catch (IOException e) {
+					console.display("Failed to start server due to: " + e.toString());
+				}
+			} else if (commandArgs[0].equals("#getport")) {
+				console.display(String.valueOf(getPort()));
+			}
+		} else {
+			console.display("SERVER MSG> " + message);
+			sendToAllClients("SERVER MSG> " + message);
+		}
+  }
+  
+  @Override
+  synchronized protected void clientDisconnected(ConnectionToClient client) {
+	  console.display("Client: " + client.getInfo(loginID) + " disconnected");
+  }
+  
+  @Override
+  synchronized protected void clientException(ConnectionToClient client, Throwable exception) {
+	  console.display("Client: " + client.getInfo(loginID) + " disconnected");
+  }
+  
+  //Class methods ***************************************************
+  
+}
+//End of EchoServer class
